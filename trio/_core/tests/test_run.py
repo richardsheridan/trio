@@ -2214,6 +2214,9 @@ async def test_simple_cancel_scope_usage_doesnt_create_cyclic_garbage():
             cscope.cancel()
             await sleep_forever()
 
+    async def raise_ValueError():
+        raise ValueError
+
     old_flags = gc.get_debug()
     try:
         gc.collect()
@@ -2222,8 +2225,10 @@ async def test_simple_cancel_scope_usage_doesnt_create_cyclic_garbage():
         await do_a_cancel()
         await do_a_cancel()
 
-        async with _core.open_nursery() as nursery:
-            nursery.start_soon(do_a_cancel)
+        with pytest.raises(ValueError):
+            async with _core.open_nursery() as nursery:
+                nursery.start_soon(do_a_cancel)
+                nursery.start_soon(raise_ValueError)
 
         gc.collect()
         assert not gc.garbage

@@ -817,6 +817,7 @@ class NurseryManager:
                 _, value, _ = sys.exc_info()
                 assert value is combined_error_from_nursery
                 value.__context__ = old_context
+                del _, combined_error_from_nursery, value, new_exc
 
     def __enter__(self):
         raise RuntimeError(

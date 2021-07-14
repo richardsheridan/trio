@@ -153,6 +153,7 @@ class MultiErrorCatcher:
                 _, value, _ = sys.exc_info()
                 assert value is filtered_exc
                 value.__context__ = old_context
+                del _, filtered_exc, value
 
 
 class MultiError(BaseException):
