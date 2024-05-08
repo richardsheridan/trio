@@ -709,8 +709,8 @@ async def _run_process(
             assert os.name == "posix"
             deliver_cancel = _posix_deliver_cancel
 
-    stdout_chunks: list[bytes | bytearray] = []
-    stderr_chunks: list[bytes | bytearray] = []
+    stdout_bytearray: bytearray = bytearray()
+    stderr_bytearray: bytearray = bytearray()
 
     async def feed_input(stream: SendStream) -> None:
         async with stream:
@@ -722,11 +722,11 @@ async def _run_process(
 
     async def read_output(
         stream: ReceiveStream,
-        chunks: list[bytes | bytearray],
+        stdout_or_stderr: bytearray,
     ) -> None:
         async with stream:
             async for chunk in stream:
-                chunks.append(chunk)
+                stdout_or_stderr.extend(chunk)
 
     # Opening the process does not need to be inside the nursery, so we put it outside
     # so any exceptions get directly seen by users.
@@ -741,12 +741,12 @@ async def _run_process(
                 proc.stdio = None
             if capture_stdout:
                 assert proc.stdout is not None
-                nursery.start_soon(read_output, proc.stdout, stdout_chunks)
+                nursery.start_soon(read_output, proc.stdout, stdout_bytearray)
                 proc.stdout = None
                 proc.stdio = None
             if capture_stderr:
                 assert proc.stderr is not None
-                nursery.start_soon(read_output, proc.stderr, stderr_chunks)
+                nursery.start_soon(read_output, proc.stderr, stderr_bytearray)
                 proc.stderr = None
             task_status.started(proc)
             await proc.wait()
@@ -763,8 +763,8 @@ async def _run_process(
                 killer_cscope.cancel()
                 raise
 
-    stdout = b"".join(stdout_chunks) if capture_stdout else None
-    stderr = b"".join(stderr_chunks) if capture_stderr else None
+    stdout = bytes(stdout_bytearray) if capture_stdout else None
+    stderr = bytes(stderr_bytearray) if capture_stderr else None
 
     if proc.returncode and check:
         raise subprocess.CalledProcessError(
